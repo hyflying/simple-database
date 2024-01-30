@@ -45,12 +45,9 @@ class TrieNode {
  public:
   // Create a TrieNode with no children.
   TrieNode() = default;
-
   // Create a TrieNode with some children.
   explicit TrieNode(std::map<char, std::shared_ptr<const TrieNode>> children) : children_(std::move(children)) {}
-
   virtual ~TrieNode() = default;
-
   // Clone returns a copy of this TrieNode. If the TrieNode has a value, the value is copied. The return
   // type of this function is a unique_ptr to a TrieNode.
   //
@@ -59,7 +56,6 @@ class TrieNode {
   //
   // Note: if you want to convert `unique_ptr` into `shared_ptr`, you can use `std::shared_ptr<T>(std::move(ptr))`.
   virtual auto Clone() const -> std::unique_ptr<TrieNode> { return std::make_unique<TrieNode>(children_); }
-
   // A map of children, where the key is the next character in the key, and the value is the next TrieNode.
   // You MUST store the children information in this structure. You are NOT allowed to remove the `const` from
   // the structure.

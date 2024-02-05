@@ -16,124 +16,116 @@
 namespace bustub {
 
 LRUKReplacer::LRUKReplacer(size_t num_frames, size_t k) : replacer_size_(num_frames), k_(k) {
-  if(num_frames <= 0 || k <= 0){
-    throw bustub::Exception(ExceptionType::INVALID,"Invalid parameter");
+  if (num_frames <= 0 || k <= 0) {
+    throw bustub::Exception(ExceptionType::INVALID, "Invalid parameter");
   }
 }
-void eraseFrame(std::vector<std::shared_ptr<LRUKNode>>& list, frame_id_t frameId){
-  for(auto it=list.begin(); it != list.end(); it++){
-    if((*it)->fid_ == frameId){
-      list.erase(it);
-      return;
-    }
-  }
-}
+
 auto LRUKReplacer::Evict(frame_id_t *frame_id) -> bool {
-  if(curr_size_ == 0){
-    return false;
-  }
-  //先到inf_list找 遍历遇到的第一个is_evict = true的元素
-  //没有的话到到k_list找，遍历遇到到第一个is_evict = true的元素
-  for(auto it = inf_list_.begin(); it != inf_list_.end(); it++){
-    if((*it)->is_evictable_){
-      curr_size_--;
-      *frame_id = (*it)->fid_;
-      evictable_size_--;
-      inf_list_.erase(it);
-      node_store_.erase(*frame_id);
-      return true;
+  std::lock_guard<std::mutex> access_lock(latch_);
+  bool find = false;
+  // k距离为无穷的页id
+  std::vector<size_t> inf_k_d_frame_id;
+  // 记录最大的k距离
+  size_t max_k_d = 0;
+
+  // 记录最大的k距离页id
+  frame_id_t max_k_d_id = replacer_size_;
+  //   遍历存储的node
+  for (auto &node : node_store_) {
+    // 该节点是否可淘汰
+    if (!node.second.GetEvictable()) {
+      continue;
+    }
+    size_t tmp = node.second.GetKDistance(current_timestamp_);
+    // 如果当前节点的k距离更大，更新页id
+    if (tmp > max_k_d) {
+      find = true;
+      max_k_d = tmp;
+      max_k_d_id = node.first;
+    }
+
+    // 如果k距离为无穷
+    if (tmp == UINT32_MAX) {
+      inf_k_d_frame_id.push_back(node.first);
     }
   }
-  for(auto  it = k_list_.begin(); it < k_list_.end(); it++){
-    if((*it)->is_evictable_){
-      curr_size_--;
-      evictable_size_--;
-      *frame_id = (*it)->fid_;
-      k_list_.erase(it);
-      node_store_.erase(*frame_id);
-      return true;
+
+  *frame_id = max_k_d_id;
+
+  //   如果有inf
+  size_t min_k_d = UINT32_MAX;
+  for (size_t &i : inf_k_d_frame_id) {
+    // 可淘汰且最近访问时间小
+    if (node_store_[i].GetBackAccess() < min_k_d) {
+      min_k_d = node_store_[i].GetBackAccess();
+      *frame_id = i;
     }
   }
+  // 清空历史记录
+  if (find) {
+    node_store_[*frame_id].RemoveHistory();
+    node_store_[*frame_id].SetEvictable(false);
+    curr_size_--;
+    // node_store_.erase(*frame_id);
+    return true;
+  }
+
   return false;
 }
 
 void LRUKReplacer::RecordAccess(frame_id_t frame_id, AccessType access_type) {
-  std::shared_ptr<LRUKNode> node_ptr;
-  bool exist = node_store_.find(frame_id) != node_store_.end();
-  if(!exist){
-    node_ptr = std::make_shared<LRUKNode>(frame_id, access_type);
-    curr_size_++;
-    node_store_[frame_id] = node_ptr;
-    inf_list_.push_back(node_ptr);
-  } else{
-    node_ptr = node_store_[frame_id];
-    node_ptr->access_times_ += 1;
-    node_ptr->access_type_ = access_type;
-    if(node_ptr->access_times_ < k_){
-      eraseFrame(inf_list_, frame_id);
-      inf_list_.push_back(node_ptr);
-    } else if(node_ptr->access_times_ == k_){
-      eraseFrame(inf_list_, frame_id);
-      k_list_.push_back(node_ptr);
-    }else{
-      eraseFrame(k_list_, frame_id);
-      k_list_.push_back(node_ptr);
-    }
+  // 加锁
+  std::lock_guard<std::mutex> access_lock(latch_);
+  // 如果页id不合法
+  if (static_cast<size_t>(frame_id) > replacer_size_) {
+    throw Exception("LRUKReplacer::RecordAccess: frame_id is invalid");
   }
-  if(curr_size_ > replacer_size_){
-    int value;
-    bool canEvict = Evict(&value);
-    if(!canEvict){
-      throw Exception(ExceptionType::OUT_OF_MEMORY,"replacer out of memory");
+  if (node_store_.find(frame_id) == node_store_.end()) {
+    // 节点已满
+    if (node_store_.size() == replacer_size_) {
+      return;
     }
-    eraseFrame(k_list_, value);
-    eraseFrame(inf_list_, value);
-    node_store_.erase(value);
+    // 如果不存在，则添加
+    node_store_[frame_id] = LRUKNode(frame_id, k_);
   }
-
+  // 给当前页添加访问历史
+  node_store_[frame_id].AddHistory(current_timestamp_);
+  // 时间自增
+  current_timestamp_++;
 }
 
 void LRUKReplacer::SetEvictable(frame_id_t frame_id, bool set_evictable) {
-  if(node_store_.find(frame_id) == node_store_.end()){
-    throw Exception(ExceptionType::INVALID,"Invalid frame_id");
+  // 加锁
+  std::lock_guard<std::mutex> access_lock(latch_);
+  // 如果页id不合法
+  if (node_store_.find(frame_id) == node_store_.end()) {
+    throw Exception("LRUKReplacer::RecordAccess: frame_id is invalid");
   }
-  auto node_ptr = node_store_[frame_id];
-  if((node_ptr->is_evictable_)^set_evictable){
-    node_ptr->is_evictable_ = set_evictable;
-    if(set_evictable){
-      evictable_size_++;
-    }else{
-      evictable_size_--;
-    }
-
+  if (!set_evictable && node_store_[frame_id].GetEvictable()) {
+    curr_size_--;
+  } else if (set_evictable && !node_store_[frame_id].GetEvictable()) {
+    curr_size_++;
   }
+  node_store_[frame_id].SetEvictable(set_evictable);
 }
 
 void LRUKReplacer::Remove(frame_id_t frame_id) {
-  if(node_store_.find(frame_id) == node_store_.end()){
+  std::lock_guard<std::mutex> access_lock(latch_);
+  if (node_store_.find(frame_id) == node_store_.end()) {
     return;
   }
-  auto node_ptr = node_store_[frame_id];
-  if(!node_ptr->is_evictable_){
-    throw Exception(ExceptionType::INVALID, "can't be removed");
+  // 如果页id不合法或不可驱逐
+  if (!node_store_[frame_id].GetEvictable()) {
+    throw Exception("LRUKReplacer::Remove: frame_id can not be remove");
   }
-  evictable_size_--;
-  curr_size_--;
+  //   移除
+  node_store_[frame_id].RemoveHistory();
+  node_store_[frame_id].SetEvictable(false);
   node_store_.erase(frame_id);
-  for(auto it = inf_list_.begin(); it != inf_list_.end(); it++){
-    if((*it)->fid_ == frame_id){
-      inf_list_.erase(it);
-    }
-  }
-  for(auto it = k_list_.begin(); it != inf_list_.end(); it++){
-    if((*it)->fid_ == frame_id){
-      k_list_.erase(it);
-    }
-  }
+  curr_size_--;
 }
 
-auto LRUKReplacer::Size() -> size_t { return evictable_size_; }
-
-
+auto LRUKReplacer::Size() -> size_t { return curr_size_; }
 
 }  // namespace bustub

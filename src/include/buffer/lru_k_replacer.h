@@ -28,14 +28,54 @@ enum class AccessType { Unknown = 0, Lookup, Scan, Index };
 class LRUKNode {
   // Getter for fid_
  public:
-  LRUKNode(frame_id_t fid, AccessType accessType) : fid_(fid), access_type_(accessType){}
+  LRUKNode() = default;
+  LRUKNode(size_t id, size_t k) : fid_(id), k_(k) {}
   ~LRUKNode() = default;
   /** History of last seen K timestamps of this page. Least recent timestamp stored in front. */
   // Remove maybe_unused if you start using them. Feel free to change the member variables as you want.
-   frame_id_t fid_;
-   AccessType access_type_;
-   bool is_evictable_{false};
-   u_int32_t access_times_{1};
+  auto GetEvictable() -> bool { return is_evictable_; }
+  void SetEvictable(bool evictable) { is_evictable_ = evictable; }
+  auto GetHistory() { return history_; }
+  void AddHistory(size_t timestamp) { history_.push_front(timestamp); }
+  void RemoveHistory() {
+    while (!history_.empty()) {
+      history_.pop_back();
+    }
+  }
+  auto GetFid() { return fid_; }
+  void SetK(size_t k) { k_ = k; }
+  auto GetKDistance(size_t cur) -> uint64_t {
+    // 如果一个帧的历史访问次数少于k次，则将其后向k距离设置为正无穷大（+inf）
+    if (history_.size() < k_) {
+      return UINT32_MAX;
+    }
+    // 获取k次前访问的时间戳
+    size_t k_distance;
+    auto it = history_.begin();
+    std::advance(it, k_ - 1);
+    k_distance = *it;
+    return cur - k_distance;
+  }
+  auto GetLastAccess() -> size_t {
+    if (history_.empty()) {
+      return UINT32_MAX;
+    }
+    return history_.front();
+  }
+  auto GetBackAccess() -> size_t {
+    if (history_.empty()) {
+      return UINT32_MAX;
+    }
+    return history_.back();
+  }
+
+ private:
+  frame_id_t fid_;
+  std::list<size_t> history_;
+  size_t k_;
+  bool is_evictable_{false};
+  [[maybe_unused]] AccessType access_type_;
+  // u_int32_t access_times_{1};
 };
 
 /**
@@ -153,15 +193,15 @@ class LRUKReplacer {
  private:
   // TODO(student): implement me! You can replace these member variables as you like.
   // Remove maybe_unused if you start using them.
-   std::unordered_map<frame_id_t, std::shared_ptr<LRUKNode>> node_store_;
+  std::unordered_map<frame_id_t, LRUKNode> node_store_;
   [[maybe_unused]] size_t current_timestamp_{0};
-   size_t curr_size_{0};
-   size_t evictable_size_{0};
-   size_t replacer_size_; //max num of frame
-   size_t k_; // 满足k次将元素放入k_list
-   std::vector<std::shared_ptr<LRUKNode>> inf_list_; // 访问次数小于k次
-   std::vector<std::shared_ptr<LRUKNode>> k_list_; // 访问次数到达k次
-  [[maybe_unused]] std::mutex latch_;
+  size_t curr_size_{0};
+  // size_t evictable_size_{0};
+  size_t replacer_size_;  // max num of frame
+  size_t k_;              // 满足k次将元素放入k_list
+  // std::vector<std::shared_ptr<LRUKNode>> inf_list_;  // 访问次数小于k次
+  // std::vector<std::shared_ptr<LRUKNode>> k_list_;    // 访问次数到达k次
+  std::mutex latch_;
 };
 
 }  // namespace bustub

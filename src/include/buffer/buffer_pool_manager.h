@@ -208,5 +208,6 @@ class BufferPoolManager {
   }
 
   // TODO(student): You may add additional private members and helper functions
+  void HandleDirty(frame_id_t fid);
 };
 }  // namespace bustub

@@ -89,7 +89,7 @@ auto BufferPoolManager::FetchPage(page_id_t page_id, [[maybe_unused]] AccessType
     // ! get page
     auto frame_id = page_table_[page_id];
     auto page = pages_ + frame_id;
-    // ! uodate replacer
+    // ! update replacer
     replacer_->RecordAccess(frame_id);
     replacer_->SetEvictable(frame_id, false);
     // ! update pin count
@@ -258,12 +258,30 @@ auto BufferPoolManager::DeletePage(page_id_t page_id) -> bool {
 
 auto BufferPoolManager::AllocatePage() -> page_id_t { return next_page_id_++; }
 
-auto BufferPoolManager::FetchPageBasic(page_id_t page_id) -> BasicPageGuard { return {this, nullptr}; }
+auto BufferPoolManager::FetchPageBasic(page_id_t page_id) -> BasicPageGuard {
+  return BasicPageGuard{this, FetchPage(page_id)};
+}
 
-auto BufferPoolManager::FetchPageRead(page_id_t page_id) -> ReadPageGuard { return {this, nullptr}; }
+auto BufferPoolManager::FetchPageRead(page_id_t page_id) -> ReadPageGuard {
+  Page *page = FetchPage(page_id);
+  if (page == nullptr) {
+    return {this, nullptr};
+  }
+  page->RLatch();
+  return ReadPageGuard({this, page});
+}
 
-auto BufferPoolManager::FetchPageWrite(page_id_t page_id) -> WritePageGuard { return {this, nullptr}; }
+auto BufferPoolManager::FetchPageWrite(page_id_t page_id) -> WritePageGuard {
+  Page *page = FetchPage(page_id);
+  if (page == nullptr) {
+    return {this, nullptr};
+  }
+  page->WLatch();
+  return WritePageGuard({this, page});
+}
 
-auto BufferPoolManager::NewPageGuarded(page_id_t *page_id) -> BasicPageGuard { return {this, nullptr}; }
+auto BufferPoolManager::NewPageGuarded(page_id_t *page_id) -> BasicPageGuard {
+  return BasicPageGuard{this, NewPage(page_id)};
+}
 
 }  // namespace bustub

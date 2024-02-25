@@ -45,7 +45,9 @@ class SeqScanPlanNode : public AbstractPlanNode {
   auto GetType() const -> PlanType override { return PlanType::SeqScan; }
 
   /** @return The identifier of the table that should be scanned */
-  auto GetTableOid() const -> table_oid_t { return table_oid_; }
+  auto GetTableOid() const -> table_oid_t {
+    return table_oid_;
+  }
 
   static auto InferScanSchema(const BoundBaseTableRef &table_ref) -> Schema;
 

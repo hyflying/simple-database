@@ -189,7 +189,6 @@ class Catalog {
    */
   auto GetTable(table_oid_t table_oid) const -> TableInfo * {
     auto meta = tables_.find(table_oid);
-    std::cout<<"catalog->GetTable"<<'\n';
     if (meta == tables_.end()) {
       return NULL_TABLE_INFO;
     }

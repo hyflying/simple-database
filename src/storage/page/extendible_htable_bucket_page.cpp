@@ -37,7 +37,6 @@ auto ExtendibleHTableBucketPage<K, V, KC>::Lookup(const K &key, V &value, const 
 
 template <typename K, typename V, typename KC>
 auto ExtendibleHTableBucketPage<K, V, KC>::Insert(const K &key, const V &value, const KC &cmp) -> bool {
-  // std::cout << "hyfbucketInsert: " << key << " value:" << value << "\n";
   if (size_ == max_size_) {
     return false;
   }
@@ -53,7 +52,6 @@ auto ExtendibleHTableBucketPage<K, V, KC>::Insert(const K &key, const V &value, 
 
 template <typename K, typename V, typename KC>
 auto ExtendibleHTableBucketPage<K, V, KC>::Remove(const K &key, const KC &cmp) -> bool {
-  // std::cout << "hyfbucketRemove: " << key << "\n";
   for (uint32_t i = 0; i < size_; i++) {
     if (cmp(array_[i].first, key) == 0) {
       RemoveAt(i);
@@ -65,7 +63,6 @@ auto ExtendibleHTableBucketPage<K, V, KC>::Remove(const K &key, const KC &cmp) -
 
 template <typename K, typename V, typename KC>
 void ExtendibleHTableBucketPage<K, V, KC>::RemoveAt(uint32_t bucket_idx) {
-  // std::cout << "hyfbucketRemoveAt:" << bucket_idx << "\n";
   if (bucket_idx >= size_) {
     return;
   }

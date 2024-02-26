@@ -198,9 +198,7 @@ class LRUKReplacer {
   size_t curr_size_{0};
   // size_t evictable_size_{0};
   size_t replacer_size_;  // max num of frame
-  size_t k_;              // 满足k次将元素放入k_list
-  // std::vector<std::shared_ptr<LRUKNode>> inf_list_;  // 访问次数小于k次
-  // std::vector<std::shared_ptr<LRUKNode>> k_list_;    // 访问次数到达k次
+  size_t k_;
   std::mutex latch_;
 };
 

@@ -58,14 +58,14 @@ auto InsertExecutor::Next([[maybe_unused]] Tuple *tuple, RID *rid) -> bool {
 
     // check the tuple already in index?
     auto indexes = exec_ctx_->GetCatalog()->GetTableIndexes(table_info_->name_);
-//    BUSTUB_ENSURE(indexes.size() <= 1, "not only one index");
+    //    BUSTUB_ENSURE(indexes.size() <= 1, "not only one index");
     for (auto &index_info : indexes) {
       auto attr = index_info->index_->GetKeyAttrs();
       BUSTUB_ENSURE(attr.size() == 1, "hashindex for many attrs?");
       Tuple key({in_tuple.GetValue(&table_info_->schema_, attr[0])}, &index_info->key_schema_);
       std::vector<RID> result;
-//      index_info->index_->ScanKey(key, &result, exec_ctx_->GetTransaction());
-//      BUSTUB_ENSURE(result.size() == 1, "index more than one tuple");
+      //      index_info->index_->ScanKey(key, &result, exec_ctx_->GetTransaction());
+      //      BUSTUB_ENSURE(result.size() == 1, "index more than one tuple");
     }
 
     auto rid_opt =

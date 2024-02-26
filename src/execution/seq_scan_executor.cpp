@@ -14,7 +14,8 @@
 
 namespace bustub {
 
-SeqScanExecutor::SeqScanExecutor(ExecutorContext *exec_ctx, const SeqScanPlanNode *plan) : AbstractExecutor(exec_ctx), plan_(plan) {}
+SeqScanExecutor::SeqScanExecutor(ExecutorContext *exec_ctx, const SeqScanPlanNode *plan)
+    : AbstractExecutor(exec_ctx), plan_(plan) {}
 
 void SeqScanExecutor::Init() {
   auto table_info = exec_ctx_->GetCatalog()->GetTable(plan_->GetTableOid());
@@ -22,12 +23,12 @@ void SeqScanExecutor::Init() {
 }
 
 auto SeqScanExecutor::Next(Tuple *tuple, RID *rid) -> bool {
-  while(true){
-    if(iterator_->IsEnd()){
+  while (true) {
+    if (iterator_->IsEnd()) {
       return false;
     }
     auto meta = iterator_->GetTuple().first;
-    if(meta.is_deleted_){
+    if (meta.is_deleted_) {
       ++(*iterator_);
       continue;
     }

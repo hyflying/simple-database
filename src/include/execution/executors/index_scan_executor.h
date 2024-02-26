@@ -48,6 +48,5 @@ class IndexScanExecutor : public AbstractExecutor {
   TableHeap *table_heap_;
   HashTableIndexForTwoIntegerColumn *htable_;
   bool vis_;
-
 };
 }  // namespace bustub
